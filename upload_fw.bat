@@ -7,14 +7,14 @@ SET SKIP_FLASH=0
 
 :CHECK_ARGS
 IF "%~1"=="" GOTO ARGS_DONE
-IF /I "%~1"=="no_boot" SET SKIP_BOOT=1
-IF /I "%~1"=="no_flash" SET SKIP_FLASH=1
+IF /I "%~1"=="--no_boot" SET SKIP_BOOT=1
+IF /I "%~1"=="--no_flash" SET SKIP_FLASH=1
 SHIFT
 GOTO CHECK_ARGS
 :ARGS_DONE
 
 IF %SKIP_BOOT% EQU 1 IF %SKIP_FLASH% EQU 1 (
-    ECHO [INFO] Both no_boot and no_flash specified - skipping all operations
+    ECHO [INFO] Both --no_boot and --no_flash specified - skipping all operations
     PAUSE
     EXIT /B 0
 )
@@ -43,7 +43,7 @@ REM --------------------------------------------------
 REM New simplified firmware loading without function
 REM --------------------------------------------------
 
-REM Load bootloader (unless no_boot specified)
+REM Load bootloader (unless --no_boot specified)
 IF %SKIP_BOOT% EQU 0 (
     IF NOT EXIST "%FIRMWARE_DIR%\%FILE1%" (
         ECHO [ERROR] Bootloader file not found: %FILE1%
@@ -67,10 +67,11 @@ IF %SKIP_BOOT% EQU 0 (
         EXIT /B 1
     )
 ) ELSE (
-    ECHO [INFO] Skipping bootloader (no_boot specified)
+    ECHO [INFO] Skipping bootloader (--no_boot specified^)
 )
 
-REM Load main firmware (unless no_flash specified)
+
+REM Load main firmware (unless --no_flash specified)
 IF %SKIP_FLASH% EQU 0 (
     IF NOT EXIST "%FIRMWARE_DIR%\%FILE2%" (
         ECHO [ERROR] Main firmware file not found: %FILE2%
@@ -94,7 +95,7 @@ IF %SKIP_FLASH% EQU 0 (
         EXIT /B 1
     )
 ) ELSE (
-    ECHO [INFO] Skipping main firmware (no_flash specified)
+    ECHO [INFO] Skipping main firmware (--no_flash specified^)
 )
 
 ECHO [SUCCESS] Operation completed
