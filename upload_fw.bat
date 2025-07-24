@@ -15,7 +15,6 @@ GOTO CHECK_ARGS
 
 IF %SKIP_BOOT% EQU 1 IF %SKIP_FLASH% EQU 1 (
     ECHO [INFO] Both --no_boot and --no_flash specified - skipping all operations
-    PAUSE
     EXIT /B 0
 )
 
@@ -31,13 +30,40 @@ SET "FIRMWARE_DIR=.\fw_files"
 REM Check if firmware directory exists
 IF NOT EXIST "%FIRMWARE_DIR%" (
     ECHO [ERROR] Firmware directory not found: %FIRMWARE_DIR%
-    PAUSE
     EXIT /B 1
 )
 
 REM Fixed firmware filenames
 SET "FILE1=kosvt_bootloader.hex"
-SET "FILE2=KOSVT_SW.hex"
+
+
+REM Find main firmware file with highest version
+SET "FLASH_FILE="
+SET "FLASH_MAX_VERSION=0.0.0"
+SET "FLASH_MAX_FILE="
+
+FOR %%F IN ("%FIRMWARE_DIR%\kosvt_flash_*.hex") DO (
+    SET "FLASH_FILENAME=%%~nF"
+    REM Extract version number from filename (format: kosvt_flash_X_Y_Z.hex)
+    FOR /F "tokens=3 delims=_" %%V IN ("!FLASH_FILENAME!") DO (
+        SET "FLASH_VERSION=%%V"
+        REM Compare versions
+        CALL :COMPARE_VERSIONS "!FLASH_VERSION!" "!FLASH_MAX_VERSION!"
+        IF !COMPARE_RESULT! EQU 1 (
+            SET "FLASH_MAX_VERSION=!FLASH_VERSION!"
+            SET "FLASH_MAX_FILE=%%F"
+        )
+    )
+)
+
+IF NOT DEFINED FLASH_MAX_FILE (
+    ECHO [ERROR] No kosvt_flash_*.hex files found in %FIRMWARE_DIR%
+    PAUSE
+    EXIT /B 1
+)
+
+SET "FILE2=!FLASH_MAX_FILE!"
+ECHO [INFO] Found firmware version: !FLASH_MAX_VERSION!
 
 REM --------------------------------------------------
 REM New simplified firmware loading without function
@@ -47,7 +73,6 @@ REM Load bootloader (unless --no_boot specified)
 IF %SKIP_BOOT% EQU 0 (
     IF NOT EXIST "%FIRMWARE_DIR%\%FILE1%" (
         ECHO [ERROR] Bootloader file not found: %FILE1%
-        PAUSE
         EXIT /B 1
     )
     
@@ -63,7 +88,6 @@ IF %SKIP_BOOT% EQU 0 (
     
     IF %ERRORLEVEL% NEQ 0 (
         ECHO [ERROR] Failed to load bootloader
-        PAUSE
         EXIT /B 1
     )
 ) ELSE (
@@ -75,7 +99,6 @@ REM Load main firmware (unless --no_flash specified)
 IF %SKIP_FLASH% EQU 0 (
     IF NOT EXIST "%FIRMWARE_DIR%\%FILE2%" (
         ECHO [ERROR] Main firmware file not found: %FILE2%
-        PAUSE
         EXIT /B 1
     )
     
@@ -91,7 +114,6 @@ IF %SKIP_FLASH% EQU 0 (
     
     IF %ERRORLEVEL% NEQ 0 (
         ECHO [ERROR] Failed to load main firmware
-        PAUSE
         EXIT /B 1
     )
 ) ELSE (
