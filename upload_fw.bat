@@ -30,52 +30,64 @@ SET "OPENOCD_TARGET=%WORKING_DIR%\mik32-uploader\openocd-scripts\target\mik32.cf
 REM Firmware directory
 SET "FIRMWARE_DIR=%WORKING_DIR%\fw_files"
 
-REM Check if firmware directory exists
-IF NOT EXIST "%FIRMWARE_DIR%" (
-    ECHO [ERROR] Firmware directory not found: "%FIRMWARE_DIR%"
-    EXIT /B 1
+REM Check if firmware directory exists (only if we're going to flash something)
+IF %SKIP_BOOT% EQU 0 IF %SKIP_FLASH% EQU 0 (
+    IF NOT EXIST "%FIRMWARE_DIR%" (
+        ECHO [ERROR] Firmware directory not found: "%FIRMWARE_DIR%"
+        EXIT /B 1
+    )
 )
 
 REM Fixed bootloader filename
 SET "FILE1=kosvt_bootloader.hex"
 
-REM Find main firmware file with highest version
-SET "FLASH_FILE="
-SET "FLASH_MAX_VERSION=0_0_0"
-SET "FLASH_MAX_FILE="
-
-FOR %%F IN ("%FIRMWARE_DIR%\kosvt_flash_*.hex") DO (
-    SET "FLASH_FILENAME=%%~nF"
-    REM Extract version parts after second underscore (X_Y_Z from kosvt_flash_X_Y_Z.hex)
-    FOR /F "tokens=3-5 delims=_" %%A IN ("%%~nF") DO (
-        SET "FLASH_VERSION=%%A_%%B_%%C"
-        REM Use simple string comparison for version
-        IF "%%A_%%B_%%C" GTR "!FLASH_MAX_VERSION!" (
-            SET "FLASH_MAX_VERSION=%%A_%%B_%%C"
-            SET "FLASH_MAX_FILE=%%F"
-        )
-    )
-)
-
-IF NOT DEFINED FLASH_MAX_FILE (
-    ECHO [ERROR] No valid kosvt_flash_*.hex files found in "%FIRMWARE_DIR%"
-    EXIT /B 1
-)
-
-SET "FILE2=!FLASH_MAX_FILE!"
-ECHO [INFO] Firmware FLASH version: !FLASH_MAX_VERSION!
-
 REM --------------------------------------------------
-REM New simplified firmware loading without function
+REM Bootloader section
 REM --------------------------------------------------
-
-REM Load bootloader (unless --no_boot specified)
 IF %SKIP_BOOT% EQU 0 (
+    REM Check bootloader file only if we're going to flash it
     IF NOT EXIST "%FIRMWARE_DIR%\%FILE1%" (
         ECHO [ERROR] Bootloader file not found: "%FIRMWARE_DIR%\%FILE1%"
         EXIT /B 1
     )
-    
+)
+
+REM --------------------------------------------------
+REM Main firmware section
+REM --------------------------------------------------
+IF %SKIP_FLASH% EQU 0 (
+    REM Find main firmware file with highest version
+    SET "FLASH_FILE="
+    SET "FLASH_MAX_VERSION=0_0_0"
+    SET "FLASH_MAX_FILE="
+
+    FOR %%F IN ("%FIRMWARE_DIR%\kosvt_flash_*.hex") DO (
+        SET "FLASH_FILENAME=%%~nF"
+        REM Extract version parts after second underscore (X_Y_Z from kosvt_flash_X_Y_Z.hex)
+        FOR /F "tokens=3-5 delims=_" %%A IN ("%%~nF") DO (
+            SET "FLASH_VERSION=%%A_%%B_%%C"
+            REM Use simple string comparison for version
+            IF "%%A_%%B_%%C" GTR "!FLASH_MAX_VERSION!" (
+                SET "FLASH_MAX_VERSION=%%A_%%B_%%C"
+                SET "FLASH_MAX_FILE=%%F"
+            )
+        )
+    )
+
+    IF NOT DEFINED FLASH_MAX_FILE (
+        ECHO [ERROR] No valid kosvt_flash_*.hex files found in "%FIRMWARE_DIR%"
+        EXIT /B 1
+    )
+
+    SET "FILE2=!FLASH_MAX_FILE!"
+    ECHO [INFO] Firmware FLASH version: !FLASH_MAX_VERSION!
+)
+
+REM Empty line
+ECHO.
+
+REM Load bootloader (unless --no_boot specified)
+IF %SKIP_BOOT% EQU 0 (
     ECHO [STATUS] Loading bootloader...
     ECHO [DEBUG] Full path: "%FIRMWARE_DIR%\%FILE1%"
     
@@ -94,6 +106,8 @@ IF %SKIP_BOOT% EQU 0 (
     ECHO [INFO] Skipping bootloader (--no_boot specified^)
 )
 
+REM Empty line
+ECHO.
 
 REM Load main firmware (unless --no_flash specified)
 IF %SKIP_FLASH% EQU 0 (
